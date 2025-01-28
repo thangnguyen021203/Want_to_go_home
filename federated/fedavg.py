@@ -2,6 +2,8 @@ import time
 import matplotlib.pyplot as plt
 import torch
 from config import CONFIG
+from concurrent.futures import ThreadPoolExecutor
+import numpy as np
 
 
 def plot_metrics(loss_history, accuracy_history):
@@ -69,17 +71,33 @@ def fedavg(clients, server, rounds):
 
     # Huấn luyện cho đến khi hội tụ 
     round_time = 0
-    prev_accuracy = 0
+    prev_loss = 0
     convergence = False
     while not convergence:
         print(f"\n--- Round {round_time} ---")
 
         # 1. Thu thập mô hình từ các client
         client_updates = []
-        for client in clients:
-            print(f"Client {client.client_id} training...")
-            client_model_state = client.train()  # Huấn luyện mô hình
-            client_updates.append(client_model_state)
+        # Mô phỏng tuần tự
+        # for client in clients:
+        #     print(f"Client {client.client_id} training...")
+        #     client_model_state = client.train()  # Huấn luyện mô hình
+        #     client_updates.append(client_model_state)
+        
+        # Mô phỏng song song
+        training_clients = np.random.choice(clients, CONFIG["num_client_training"], replace=False)
+        with ThreadPoolExecutor() as executor:
+            futures = {}
+            # Gửi các tác vụ huấn luyện lên các thread, kèm theo client_id
+            for client in training_clients:
+                futures[executor.submit(client.train)] = client.client_id  # Lưu trữ future kèm theo client_id
+
+            # Chờ kết quả và thu thập mô hình từ từng client
+            for future in futures:
+                client_model_state = future.result()  # Lấy kết quả huấn luyện từ client
+                client_id = futures[future]  # Lấy client_id từ dictionary
+                print(f"Client {client_id} finished training.")
+                client_updates.append(client_model_state)
 
         # 2. Tổng hợp các mô hình trên server
         print("Aggregating updates on the server...")
@@ -92,10 +110,10 @@ def fedavg(clients, server, rounds):
         print(f"Server evaluation: Loss = {loss:.4f}, Accuracy = {accuracy:.2f}%")
 
         # 4. Kiểm tra hội tụ
-        if abs(accuracy-prev_accuracy) < CONFIG["convergence_threshold"]:
+        if abs(loss-prev_loss) < CONFIG["convergence_threshold"] and loss < 0.5:
             convergence = True
             break
-        prev_accuracy = accuracy
+        prev_loss = loss
         round_time += 1
         
     # Huấn luyện theo số vòng lặp

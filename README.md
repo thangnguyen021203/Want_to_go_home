@@ -1,4 +1,3 @@
-# Want_to_go_home
 ## FedProx
 Trong FedProx người ta sampling devices là uniformly\
 set number device là 10\
