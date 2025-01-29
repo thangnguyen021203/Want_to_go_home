@@ -8,6 +8,10 @@ class Client:
         self.config = config
         self.worker = worker
 
+    def set_model(self, model):
+        """Cập nhật mô hình cho client từ server."""
+        self.model.load_state_dict(model)
+
     def train(self):
         """
         Huấn luyện mô hình trên worker.

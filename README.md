@@ -20,3 +20,11 @@ Chạy và plot về **Training Accuracy, Total training time, encryption time, 
 ![alt text](/img/image4.png)
 ![alt text](/img/image5.png)
 ![alt text](/img/image6.png)
+
+
+## Task
+Chọn model theo paper người khác.
+Có cần chạy với nhiều %client khác nhau và plot ra không?
+Coi lại việc huấn luyện, tại sao hội tụ bị dao động
+Chiến lược chọn client như thế nào?
+tích hợp zkP với PairwiseMasking

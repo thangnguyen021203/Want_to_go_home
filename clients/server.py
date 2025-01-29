@@ -27,11 +27,11 @@ class Server:
         for data, labels in self.test_dataloader:
             output = self.global_model(data)
             loss = F.cross_entropy(output, labels)
-            total_loss += loss.item()
+            total_loss = total_loss + loss.item()
             _, predicted = torch.max(output, 1)
-            correct += (predicted == labels).sum().item()
-            total += labels.size(0)
+            correct = correct + (predicted == labels).sum().item()
+            total = total + labels.size(0)
 
-        total_loss /= total
+        total_loss = total_loss / total
         accuracy = 100.0 * correct / total
         return loss, accuracy

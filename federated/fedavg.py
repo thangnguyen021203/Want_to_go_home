@@ -5,7 +5,6 @@ from config import CONFIG
 from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
-
 def plot_metrics(loss_history, accuracy_history):
     """Vẽ đồ thị loss và accuracy theo từng vòng huấn luyện."""
     rounds = range(1, len(loss_history) + 1)
@@ -55,6 +54,9 @@ def aggregate(global_model, client_updates):
         avg_state_dict[key] = torch.mean(
             torch.stack([client[key] for client in client_updates]), dim=0
         )
+    
+    # Trả về trạng thái mô hình đã tổng hợp
+    return avg_state_dict 
 
     # Cập nhật mô hình toàn cục
     global_model.load_state_dict(avg_state_dict)
@@ -69,20 +71,17 @@ def fedavg(clients, server, rounds):
 
     start_time = time.time()  # Bắt đầu tính thời gian
 
-    # Huấn luyện cho đến khi hội tụ 
     round_time = 0
     prev_loss = 0
     convergence = False
     while not convergence:
         print(f"\n--- Round {round_time} ---")
+        # # Gửi mô hình đã được tách tới các client
+        # for client in clients:
+        #     client.set_model(server.global_model)  # Gửi bản sao của mô hình cho client
 
         # 1. Thu thập mô hình từ các client
         client_updates = []
-        # Mô phỏng tuần tự
-        # for client in clients:
-        #     print(f"Client {client.client_id} training...")
-        #     client_model_state = client.train()  # Huấn luyện mô hình
-        #     client_updates.append(client_model_state)
         
         # Mô phỏng song song
         training_clients = np.random.choice(clients, CONFIG["num_client_training"], replace=False)
@@ -101,7 +100,8 @@ def fedavg(clients, server, rounds):
 
         # 2. Tổng hợp các mô hình trên server
         print("Aggregating updates on the server...")
-        server.update_model(client_updates)
+        new_state_param_model = aggregate(server.global_model, client_updates)
+        server.global_model.load_state_dict(new_state_param_model)
 
         # 3. Đánh giá trên server
         loss, accuracy = server.evaluate()
@@ -115,32 +115,17 @@ def fedavg(clients, server, rounds):
             break
         prev_loss = loss
         round_time += 1
-        
-    # Huấn luyện theo số vòng lặp
-    # for r in range(rounds):
-    #     print(f"\n--- Round {r + 1}/{rounds} ---")
 
-    #     # 1. Thu thập mô hình từ các client
-    #     client_updates = []
-    #     for client in clients:
-    #         print(f"Client {client.client_id} training...")
-    #         client_model_state = client.train()  # Huấn luyện mô hình
-    #         client_updates.append(client_model_state)
+        # 5. Gui mô hình toàn cục cho các client
+        with ThreadPoolExecutor() as executor:
+            # Gửi các tác vụ huấn luyện lên các thread, kèm theo client_id
+            for client in clients:
+                executor.submit(client.set_model, server.global_model.state_dict())
 
-    #     # 2. Tổng hợp các mô hình trên server
-    #     print("Aggregating updates on the server...")
-    #     server.update_model(client_updates)
-
-    #     # 3. Đánh giá trên server
-    #     loss, accuracy = server.evaluate()
-    #     loss_history.append(loss)
-    #     accuracy_history.append(accuracy)
-    #     print(f"Server evaluation: Loss = {loss:.4f}, Accuracy = {accuracy:.2f}%")
 
     end_time = time.time()  # Kết thúc tính thời gian
     total_time = end_time - start_time
     print(f"\nTraining completed in {total_time:.2f} seconds.")
 
-    # 4. Vẽ đồ thị loss và accuracy
+    # 5. Vẽ đồ thị loss và accuracy
     plot_metrics(loss_history, accuracy_history)
-
