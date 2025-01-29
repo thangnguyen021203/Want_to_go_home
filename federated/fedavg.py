@@ -35,6 +35,7 @@ def plot_metrics(loss_history, accuracy_history):
 
     plt.tight_layout()
     plt.show()
+    plt.savefig("img/result.png")
 
 def aggregate(global_model, client_updates):
     """
